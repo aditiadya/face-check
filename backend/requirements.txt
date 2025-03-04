@@ -1,0 +1,11 @@
+numpy
+Flask
+pandas
+matplotlib
+scipy
+redis
+insightface
+jupyter
+pillow
+opencv-python
+scikit-learn

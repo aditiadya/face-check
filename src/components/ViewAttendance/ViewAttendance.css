@@ -1,0 +1,67 @@
+.dashboard {
+    max-width: 1600px;
+    margin: auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    color: #333;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+  
+  h2 {
+    color: #3a87ad;
+    text-align: center;
+    font-size: 24px;
+  }
+  
+  .error {
+    color: red;
+    text-align: center;
+  }
+  
+  .attendance-container {
+    margin-top: 100px;
+    width: 800px;
+    
+  }
+  
+  .attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .attendance-table th,
+  .attendance-table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: center;
+  }
+  
+  .attendance-table th {
+    background-color: #3a87ad;
+    color: #fff;
+  }
+  
+  .attendance-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+  }
+  
+  .attendance-table tr:hover {
+    background-color: #d3eaf2;
+  }
+  .mark-attendance{
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    width: 200px;
+  }
+  button:hover {
+    background-color: #218838;
+  }

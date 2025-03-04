@@ -1,0 +1,63 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #eafdfc;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure the App takes full height */
+}
+
+.Header {
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.content {
+  margin: auto;
+  padding: 20px;
+  overflow-y: auto; /* Allow vertical scrolling if content overflows */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
