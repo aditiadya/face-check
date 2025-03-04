@@ -2,8 +2,7 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import { StyledSignup } from "./style";
-import { logoutUser } from "../../api/faceRecogonitionAPI";
-import { registerFace } from "../../api/faceRecogonitionAPI";
+import { logoutUser, registerFace } from "../../api/faceRecogonitionAPI";
 
 const SignupPage = () => {
   const [name, setName] = useState("");
@@ -11,6 +10,8 @@ const SignupPage = () => {
   const [role, setRole] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isWebcamActive, setIsWebcamActive] = useState(false);
@@ -30,21 +31,45 @@ const SignupPage = () => {
   // Handle registration and face capture
   const handleRegister = async (event) => {
     event.preventDefault();
-    if (!name || !rollNo || !role || !username || !password) {
+    if (
+      !name ||
+      !rollNo ||
+      !role ||
+      !username ||
+      !password ||
+      !startTime ||
+      !endTime
+    ) {
       setError("Please fill in all details.");
       return;
     }
-    setError(null);
-    setIsWebcamActive(true);
+    try {
+      const response = await fetch("http://localhost:5000/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, rollNo }),
+      });
+  
+      const data = await response.json();
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+  
+      setError(null);
+      setIsWebcamActive(true); // Activate webcam after validation
+    } catch (error) {
+      setError("Roll No or Username already taken");
+    }
   };
 
   // Submit registration with captured image
   const submitRegistration = async () => {
     setLoading(true);
-    
+
     // Capture the image from the webcam
     const imageFile = await captureImage();
-  
+
     if (imageFile) {
       // Attempt to register the user's face with the provided data
       const result = await registerFace(
@@ -53,18 +78,20 @@ const SignupPage = () => {
         rollNo,
         role,
         username,
-        password
+        password,
+        startTime,
+        endTime
       );
-  
+
       if (result.error) {
         setError(result.error);
       } else {
         alert(result.message || "Registration successful!");
-  
+
         // Store username and password in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("password", password);
-        
+
         // Redirect based on the selected role
         if (role === "Student") {
           navigate("/attendance");
@@ -75,10 +102,12 @@ const SignupPage = () => {
     } else {
       setError("Failed to capture image.");
     }
-  
+    
+
     setLoading(false);
     setIsWebcamActive(false);
   };
+
   
 
   return (
@@ -96,16 +125,7 @@ const SignupPage = () => {
               required
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="rollNo">Roll No/Employee Id:</label>
-            <input
-              type="text"
-              id="rollNo"
-              value={rollNo}
-              onChange={(e) => setRollNo(e.target.value)}
-              required
-            />
-          </div>
+
           <div className="form-group">
             <label htmlFor="role">Role:</label>
             <select
@@ -119,6 +139,45 @@ const SignupPage = () => {
               <option value="Employee">Employee</option>
             </select>
           </div>
+
+          <div className="form-group">
+            <label htmlFor="rollNo">Roll No/Employee Id:</label>
+            <input
+              type="text"
+              id="rollNo"
+              value={rollNo}
+              onChange={(e) => setRollNo(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Start Time Field */}
+          <div className="time-container">
+            <div className="form-group">
+              <label htmlFor="startTime">Start Time:</label>
+              <input
+                type="time"
+                id="startTime"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                step="900" // Allows selecting in 15-minute intervals
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="endTime">End Time:</label>
+              <input
+                type="time"
+                id="endTime"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                step="900"
+                required
+              />
+            </div>
+          </div>
+
           <div className="form-group">
             <label htmlFor="username">Username:</label>
             <input
@@ -139,6 +198,8 @@ const SignupPage = () => {
               required
             />
           </div>
+
+
           <button type="submit">Register Face</button>
         </form>
 

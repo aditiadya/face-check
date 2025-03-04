@@ -114,6 +114,7 @@ def save_dataframe_to_redis(dataframe):
     try:
         data_dict = dataframe.to_dict(orient="records")
         r.set("face_data", json.dumps(data_dict))  # Save as JSON
+
         # Save individual users as Redis hashes for easier access
         for _, row in dataframe.iterrows():
             user_id = row['user_id']
@@ -123,7 +124,9 @@ def save_dataframe_to_redis(dataframe):
                 'Role': row['Role'],
                 'Username': row['Username'],
                 'Password': row['Password'],  # Save the hashed password
-                'Embedding': json.dumps(row['embedding'])  # Save the embedding as a JSON string
+                'Embedding': json.dumps(row['embedding']),  # Save the embedding as a JSON string
+                'StartTime': row['StartTime'],  # Store start time
+                'EndTime': row['EndTime']  # Store end time
             }
             r.hmset(f"user:{user_id}", user_data)  # Save user data in a hash
     except Exception as e:
@@ -134,13 +137,13 @@ def load_dataframe_from_redis():
         data_json = r.get("face_data")
         if data_json:
             data_dict = json.loads(data_json)
-
             return pd.DataFrame(data_dict)
         else:
-            return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', "username"])
+            return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id', 'StartTime', 'EndTime'])
     except Exception as e:
         print("Error loading from Redis:", e)
-        return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding'])
+        return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id','StartTime', 'EndTime'])
+
 
 # Load data on startup
 dataframe = load_dataframe_from_redis()
@@ -148,6 +151,20 @@ dataframe = load_dataframe_from_redis()
 def generate_user_id():
     """Generate a random user ID."""
     return ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+
+@app.route("/check-user", methods=["POST"])
+def check_user():
+    data = request.json
+    username = data.get("username")
+    roll_no = data.get("rollNo")
+
+    if r.sismember("usernames_set", username):
+        return jsonify({"error": "Username already taken"}), 400
+
+    if r.exists(f"user:{roll_no}"):
+        return jsonify({"error": "Roll number already registered"}), 400
+
+    return jsonify({"message": "Validation successful"}), 200
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -157,6 +174,8 @@ def register():
         roll_no = request.form.get("rollNo")
         role = request.form.get("role")
         username = request.form.get("username")
+        start_time = request.form.get("start_time")
+        end_time = request.form.get("end_time")
         password = request.form.get("password")  # Ensure this is hashed before storing
 
         if not image_file or not name or not roll_no or not role or not username or not password:
@@ -178,12 +197,15 @@ def register():
 
         # Load existing data and add new entry
         dataframe = load_dataframe_from_redis()
-        new_entry = pd.DataFrame([[name, roll_no, role, username, hashed_password, embedding, user_id]], 
-                                 columns=['Name', 'RollNo', 'Role', 'Username', 'Password', 'embedding', 'user_id'])
+        new_entry = pd.DataFrame([[name, roll_no, role, username, hashed_password, embedding, user_id, start_time, end_time]], 
+                                 columns=['Name', 'RollNo', 'Role', 'Username', 'Password', 'embedding', 'user_id', 'StartTime', 'EndTime'])
         dataframe = pd.concat([dataframe, new_entry], ignore_index=True)
 
         save_dataframe_to_redis(dataframe)
-        return jsonify({"message": "User registered successfully"}), 200
+        r.sadd("usernames_set", username)
+
+        return jsonify({"message": "User registered successfully"}), 201
+        
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -221,6 +243,22 @@ def recognize():
 @app.route('/api/mark-attendance', methods=['POST'])
 def mark_attendance():
     try:
+        # Extract username from the request
+        username = request.form.get("username")
+        if not username:
+            return jsonify({"error": "Username is required"}), 400
+
+        # Load user data from Redis
+        dataframe = load_dataframe_from_redis()
+        user_row = dataframe[dataframe["Username"] == username]
+
+        if user_row.empty:
+            return jsonify({"error": "Invalid user"}), 400
+
+        # Extract user ID for authentication check
+        user_id = user_row['user_id'].values[0]
+
+        # Extract image from the request
         image_file = request.files.get("image")
         if not image_file:
             return jsonify({"error": "No image provided"}), 400
@@ -231,35 +269,30 @@ def mark_attendance():
         if embedding is None:
             return jsonify({"error": "No face detected"}), 400
 
-        # Load user data
-        dataframe = load_dataframe_from_redis()
-        name, role = ml_search_algorithm(dataframe, "embedding", np.array(embedding))
+        # Perform face recognition
+        recognized_name, recognized_role = ml_search_algorithm(dataframe, "embedding", np.array(embedding))
 
-        if name == "Unknown":
-            return jsonify({"error": "No match found"}), 404
+        # Ensure that the recognized face matches the logged-in user
+        if recognized_name != user_row["Name"].values[0]:
+            return jsonify({"error": "Face does not match"}), 403  # 403: Forbidden
 
+        # Proceed with marking attendance
         today = datetime.now().strftime("%Y-%m-%d")
         current_time = datetime.now().strftime("%H:%M:%S")
 
-        # Get user ID for the recognized user
-        user_row = dataframe[dataframe['Name'] == name]
-        user_id = user_row['user_id'].values[0]
-
-        # Check if attendance is already marked for today
         attendance_key = f"{user_id}-{today}"
         if r.exists(attendance_key):
             return jsonify({"error": "Attendance already marked for today"}), 400
 
-        # Mark attendance
+        # Store attendance record
         attendance_data = {
-            "name": name,
-            "role": role,
+            "name": recognized_name,
+            "role": recognized_role,
             "rollNo": user_row["RollNo"].values[0],
             "date": today,
             "time": current_time
         }
 
-        # Save attendance data to Redis
         r.set(attendance_key, json.dumps(attendance_data))
 
         # Append to the attendance report
@@ -281,6 +314,7 @@ def mark_attendance():
     except Exception as e:
         print("Error marking attendance:", e)
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/get-attendance-history', methods=['GET'])
 def get_attendance_history():

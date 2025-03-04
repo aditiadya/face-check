@@ -64,14 +64,22 @@ export const recognizeFace = async (imageFile, username, password) => {
 };
 // Mark attendance
 export const markAttendance = async (imageFile) => {
+  const username = localStorage.getItem("username"); // Get logged-in user
+
+  if (!username) {
+    return { error: "User not logged in. Please log in first." };
+  }
+
   const formData = new FormData();
   formData.append("image", imageFile);
+  formData.append("username", username); // Send logged-in username
 
   try {
     const response = await fetch("http://localhost:5000/api/mark-attendance", {
       method: "POST",
       body: formData,
     });
+
     return await response.json();
   } catch (error) {
     console.error("Error in marking attendance:", error);
@@ -79,10 +87,11 @@ export const markAttendance = async (imageFile) => {
   }
 };
 
+
 export const getAttendanceReport = async (name) => {
   try {
     const response = await fetch(
-      "http://localhost:5000/api/attendance-report?name=${name}"
+      `http://localhost:5000/api/attendance-report?name=${name}`
     );
     return await response.json();
   } catch (error) {

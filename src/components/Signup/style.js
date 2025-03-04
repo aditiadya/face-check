@@ -52,6 +52,24 @@ export const StyledSignup = styled.div`
     box-sizing: border-box;
   }
 
+     .time-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px; /* Space between start time and end time fields */
+  }
+
+  .time-container .form-group {
+    flex: 1; /* Makes both fields equal in size */
+  }
+
+  input[type="time"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
   select {
     width: 100%;
     padding: 10px;
