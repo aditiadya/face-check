@@ -129,7 +129,7 @@ def save_dataframe_to_redis(dataframe):
                 'EndTime': row['EndTime'],  # Store end time
                 'RegistrationDate': row['RegistrationDate']  # Store registration date
             }
-            r.hmset(f"user:{user_id}", user_data)  # Save user data in a hash
+            r.hset(f"user:{user_id}", user_data)  # Save user data in a hash
     except Exception as e:
         print("Error saving to Redis:", e)
 
@@ -144,7 +144,6 @@ def load_dataframe_from_redis():
     except Exception as e:
         print("Error loading from Redis:", e)
         return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id', 'StartTime', 'EndTime', 'RegistrationDate'])
-
 
 # Load data on startup
 dataframe = load_dataframe_from_redis()
@@ -335,36 +334,84 @@ def get_attendance_history():
     return jsonify(formatted_records)
 
 
+
 @app.route('/api/view-attendance', methods=['POST'])
 def view_attendance():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
 
-    if not username or not password:
-        return jsonify({"error": "Username and password are required"}), 400
+        print(f"Received request for username: {username}")  # Debugging
 
-    # Fetch user data from the DataFrame (loaded from Redis)
-    dataframe = load_dataframe_from_redis()
-    user_row = dataframe[dataframe['Username'] == username]
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
 
-    if user_row.empty:
-        return jsonify({"error": "Invalid username or password"}), 400
+        # Load user data
+        dataframe = load_dataframe_from_redis()
+        print("Loaded DataFrame:", dataframe)  # Debugging
 
-    # Verify password
-    stored_hash = user_row['Password'].values[0].encode('utf-8')
-    if not verify_password(stored_hash, password):
-        return jsonify({"error": "Invalid username or password"}), 400
+        user_row = dataframe[dataframe['Username'] == username]
+        print("User Row:", user_row)  # Debugging
 
-    # Fetch attendance records from Redis
-    user_id = user_row['user_id'].values[0]
-    attendance_data = r.get(f"{user_id}_attendance_dates_times")
+        if user_row.empty:
+            return jsonify({"error": "Invalid username or password"}), 400
 
-    if attendance_data:
-        attendance_records = json.loads(attendance_data)
-        return jsonify({"attendance": attendance_records}), 200
-    else:
-        return jsonify({"message": "No attendance records found"}), 404
+        stored_hash = user_row['Password'].values[0].encode('utf-8')
+        if not verify_password(stored_hash, password):
+            return jsonify({"error": "Invalid username or password"}), 400
+
+        user_id = user_row['user_id'].values[0]
+        print(f"User ID: {user_id}")  # Debugging
+
+        # Ensure the correct column name is used
+        if 'RegistrationDate' not in user_row:
+            print("Error: 'RegistrationDate' column not found in user data")  # Debugging
+            return jsonify({"error": "Registration date not found"}), 500
+
+        try:
+            registration_date = datetime.strptime(user_row['RegistrationDate'].values[0], "%Y-%m-%d")
+            print(f"Registration Date: {registration_date}")  # Debugging
+        except ValueError as e:
+            print(f"Error parsing RegistrationDate: {e}")  # Debugging
+            return jsonify({"error": f"Invalid date format in RegistrationDate: {e}"}), 500
+
+        today = datetime.now().date()
+        print(f"Today's Date: {today}")  # Debugging
+
+        # Generate all dates from registration to today
+        all_dates = [(registration_date + timedelta(days=i)).strftime("%Y-%m-%d") 
+                     for i in range((today - registration_date.date()).days + 1)]
+        print(f"All Dates: {all_dates}")  # Debugging
+
+        # Fetch stored attendance records
+        attendance_data = r.get(f"{user_id}_attendance_dates_times")
+        print(f"Attendance Data from Redis: {attendance_data}")  # Debugging
+
+        attendance_records = json.loads(attendance_data) if attendance_data else []
+        print(f"Attendance Records: {attendance_records}")  # Debugging
+
+        # Process attendance records
+        recorded_dates = {record["date"]: record for record in attendance_records}
+        formatted_records = [
+            {
+                "date": date,
+                "checkInTime": recorded_dates.get(date, {}).get("time", "N/A"),
+                "checkOutTime": "N/A",
+                "markedAs": "Present" if date in recorded_dates else "Absent",
+                "status": ":)" if date in recorded_dates else ":("
+            }
+            for date in all_dates
+        ]
+
+        print(f"Formatted Records: {formatted_records}")  # Debugging
+
+        return jsonify({"attendance": formatted_records}), 200
+
+    except Exception as e:
+        print(f"Error in view_attendance: {e}")  # Debugging
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
    app.run(debug=True) 

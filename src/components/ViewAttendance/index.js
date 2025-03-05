@@ -29,18 +29,21 @@ const ViewAttendance = () => {
     try {
       const data = { username, password };
       const response = await axios.post("http://localhost:5000/api/view-attendance", data);
-
-      if (response.status === 200) {
+  
+      if (response.status === 500 || response.status === 200) {
         const attendance = response.data.attendance || [];
+        console.log("Attendance Data:", attendance); // Debugging log
         setAttendanceRecords(attendance);
-        setTotalEntries(attendance.length); // Set total entries to the number of records
+        setTotalEntries(attendance.length);
       } else {
-        setError("No attendance records found.");
+        setError(response.data.error || "No attendance records found.");
       }
     } catch (err) {
-      setError("Error fetching attendance");
+      console.error("Error fetching attendance:", err);
+      setError("Error fetching attendance. Check console for details.");
     }
   };
+  
 
   return (
     <div className="dashboard">
@@ -60,7 +63,6 @@ const ViewAttendance = () => {
               <tr>
                 <th>Date</th>
                 <th>Check In Time</th>
-                <th>Check Out Time</th>
                 <th>Marked As</th>
                 <th>Status</th>
               </tr>
@@ -70,7 +72,6 @@ const ViewAttendance = () => {
                 <tr key={index}>
                   <td>{record.date || "N/A"}</td>
                   <td>{record.checkInTime || "N/A"}</td>
-                  <td>{record.checkOutTime || "N/A"}</td>
                   <td>{record.markedAs || "N/A"}</td>
                   <td>{record.status || "N/A"}</td>
                 </tr>
