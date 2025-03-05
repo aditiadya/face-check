@@ -17,7 +17,8 @@ const Attendance = () => {
   return (
     <StyledAttendance>
       <div className="card-container">
-        <Card name="Mark my attendance" onClick={handleMarkAttendance} />
+        <Card name="Check-in" onClick={handleMarkAttendance} />
+        <Card name="Check-out" onClick={handleViewAttendance} />
         <Card name="View my attendance" onClick={handleViewAttendance} />
       </div>
     </StyledAttendance>

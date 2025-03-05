@@ -126,7 +126,8 @@ def save_dataframe_to_redis(dataframe):
                 'Password': row['Password'],  # Save the hashed password
                 'Embedding': json.dumps(row['embedding']),  # Save the embedding as a JSON string
                 'StartTime': row['StartTime'],  # Store start time
-                'EndTime': row['EndTime']  # Store end time
+                'EndTime': row['EndTime'],  # Store end time
+                'RegistrationDate': row['RegistrationDate']  # Store registration date
             }
             r.hmset(f"user:{user_id}", user_data)  # Save user data in a hash
     except Exception as e:
@@ -139,10 +140,10 @@ def load_dataframe_from_redis():
             data_dict = json.loads(data_json)
             return pd.DataFrame(data_dict)
         else:
-            return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id', 'StartTime', 'EndTime'])
+            return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id', 'StartTime', 'EndTime', 'RegistrationDate'])
     except Exception as e:
         print("Error loading from Redis:", e)
-        return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id','StartTime', 'EndTime'])
+        return pd.DataFrame(columns=['Name', 'RollNo', 'Role', 'embedding', 'Username', 'Password', 'user_id', 'StartTime', 'EndTime', 'RegistrationDate'])
 
 
 # Load data on startup
@@ -174,8 +175,8 @@ def register():
         roll_no = request.form.get("rollNo")
         role = request.form.get("role")
         username = request.form.get("username")
-        start_time = request.form.get("start_time")
-        end_time = request.form.get("end_time")
+        start_time = request.form.get("startTime")
+        end_time = request.form.get("endTime")
         password = request.form.get("password")  # Ensure this is hashed before storing
 
         if not image_file or not name or not roll_no or not role or not username or not password:
@@ -195,17 +196,19 @@ def register():
         # Generate a unique user_id
         user_id = generate_user_id()
 
+        # Get the current date for registration
+        registration_date = datetime.now().strftime("%Y-%m-%d")
+
         # Load existing data and add new entry
         dataframe = load_dataframe_from_redis()
-        new_entry = pd.DataFrame([[name, roll_no, role, username, hashed_password, embedding, user_id, start_time, end_time]], 
-                                 columns=['Name', 'RollNo', 'Role', 'Username', 'Password', 'embedding', 'user_id', 'StartTime', 'EndTime'])
+        new_entry = pd.DataFrame([[name, roll_no, role, username, hashed_password, embedding, user_id, start_time, end_time, registration_date]], 
+                                 columns=['Name', 'RollNo', 'Role', 'Username', 'Password', 'embedding', 'user_id', 'StartTime', 'EndTime', 'RegistrationDate'])
         dataframe = pd.concat([dataframe, new_entry], ignore_index=True)
 
         save_dataframe_to_redis(dataframe)
         r.sadd("usernames_set", username)
 
         return jsonify({"message": "User registered successfully"}), 201
-        
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

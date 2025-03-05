@@ -11,7 +11,9 @@ export const registerFace = async (
   rollNo,
   role,
   username,
-  password
+  password,
+  startTime,
+  endTime
 ) => {
   const formData = new FormData();
   formData.append("image", imageFile);
@@ -20,6 +22,8 @@ export const registerFace = async (
   formData.append("role", role);
   formData.append("username", username);
   formData.append("password", password);
+  formData.append("startTime", startTime);
+  formData.append("endTime", endTime);
 
   try {
     const response = await fetch("http://localhost:5000/api/register", {

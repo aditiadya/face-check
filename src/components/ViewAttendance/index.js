@@ -58,19 +58,21 @@ const ViewAttendance = () => {
           <table className="attendance-table">
             <thead>
               <tr>
-                {Object.keys(attendanceRecords[0]).map((key) => (
-                  <th key={key}>
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </th>
-                ))}
+                <th>Date</th>
+                <th>Check In Time</th>
+                <th>Check Out Time</th>
+                <th>Marked As</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {attendanceRecords.map((record, index) => (
                 <tr key={index}>
-                  {Object.values(record).map((value, i) => (
-                    <td key={i}>{value || "Data not available"}</td>
-                  ))}
+                  <td>{record.date || "N/A"}</td>
+                  <td>{record.checkInTime || "N/A"}</td>
+                  <td>{record.checkOutTime || "N/A"}</td>
+                  <td>{record.markedAs || "N/A"}</td>
+                  <td>{record.status || "N/A"}</td>
                 </tr>
               ))}
             </tbody>
@@ -81,7 +83,7 @@ const ViewAttendance = () => {
       </div>
 
       {/* Mark Attendance Button */}
-      <div className="mark-attendanc">
+      <div>
         <Link to="/markAttendance">
           <button className="mark-attendance">Mark Attendance</button>
         </Link>

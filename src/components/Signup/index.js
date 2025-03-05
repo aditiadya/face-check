@@ -80,7 +80,7 @@ const SignupPage = () => {
         username,
         password,
         startTime,
-        endTime
+        endTime,
       );
 
       if (result.error) {
