@@ -47,13 +47,13 @@ const BadRequest = () => {
     <div style={styles.container}>
       <h1 style={styles.heading}>About Us</h1>
       <p style={styles.paragraph}>
-        Welcome to <span style={styles.highlight}>WebAttend</span>, your trusted partner in modern attendance management. 
-        Whether your team is working remotely or attending in person, WebAttend provides a seamless, secure, 
+        Welcome to <span style={styles.highlight}>FaceCheck</span>, your trusted partner in modern attendance management. 
+        Whether your team is working remotely or attending in person, FaceCheck provides a seamless, secure, 
         and reliable solution to track and manage attendance effectively.
       </p>
       <h2 style={styles.subheading}>Who We Are</h2>
       <p style={styles.paragraph}>
-        At <span style={styles.highlight}>WebAttend</span>, we are a passionate team of tech innovators dedicated to 
+        At <span style={styles.highlight}>FaceCheck</span>, we are a passionate team of tech innovators dedicated to 
         creating smarter ways to streamline attendance processes. We understand the challenges organizations face 
         in balancing remote and physical workflows, and we’re here to bridge the gap with cutting-edge technology.
       </p>
@@ -72,7 +72,7 @@ const BadRequest = () => {
           <span style={styles.highlight}>Facial Recognition Integration:</span> Incorporating advanced facial recognition technology ensures a hassle-free, quick, and accurate attendance process.
         </li>
       </ul>
-      <h2 style={styles.subheading}>Why Choose WebAttend?</h2>
+      <h2 style={styles.subheading}>Why Choose FaceCheck?</h2>
       <ul style={styles.list}>
         <li style={styles.listItem}>
           <span style={styles.highlight}>Flexibility:</span> Support for both remote and physical attendance.
@@ -90,11 +90,11 @@ const BadRequest = () => {
       <h2 style={styles.subheading}>Our Vision</h2>
       <p style={styles.paragraph}>
         We envision a world where attendance management is effortless, secure, and adaptable to every 
-        organization’s unique needs. At WebAttend, we are committed to empowering businesses and institutions 
+        organization’s unique needs. At FaceCheck, we are committed to empowering businesses and institutions 
         with the tools to focus on growth and productivity while leaving attendance challenges behind.
       </p>
       <p style={styles.paragraph}>
-        Let <span style={styles.highlight}>WebAttend</span> redefine how you manage attendance—securely, efficiently, and with confidence.
+        Let <span style={styles.highlight}>FaceCheck</span> redefine how you manage attendance—securely, efficiently, and with confidence.
       </p>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import { StyledDynamicHeader } from "./style";
+import { StyledDynamicHeader, NavLink } from './style';
 import { Link } from "react-router-dom";
 import face_recognition from "../../assets/face_recognition.png";
 
@@ -29,3 +29,4 @@ const DynamicHeader = ({ headingName }) => {
 };
 
 export default DynamicHeader;
+

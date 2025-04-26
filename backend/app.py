@@ -279,8 +279,33 @@ def mark_attendance():
             return jsonify({"error": "Face does not match"}), 403  # 403: Forbidden
 
         # Proceed with marking attendance
-        today = datetime.now().strftime("%Y-%m-%d")
-        current_time = datetime.now().strftime("%H:%M:%S")
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+        current_time = now.strftime("%H:%M:%S")
+
+        # Get user's scheduled start time
+        start_time_str = user_row["StartTime"].values[0]
+
+        # Calculate time difference
+        try:
+            # Parse times (assuming format is HH:MM or HH:MM:SS)
+            scheduled_time = datetime.strptime(start_time_str, "%H:%M").time()
+            current_time_obj = now.time()
+            
+            # Calculate time difference in minutes
+            scheduled_datetime = datetime.combine(now.date(), scheduled_time)
+            current_datetime = datetime.combine(now.date(), current_time_obj)
+            time_difference = (current_datetime - scheduled_datetime).total_seconds() / 60
+            
+            # Determine status
+            if time_difference > 10:  # More than 10 minutes late
+                status = "Late"
+            else:
+                status = "OnTime"
+        except Exception as e:
+            print(f"Error calculating time difference: {e}")
+            status = "Unknown"
+
 
         attendance_key = f"{user_id}-{today}"
         if r.exists(attendance_key):
@@ -292,7 +317,9 @@ def mark_attendance():
             "role": recognized_role,
             "rollNo": user_row["RollNo"].values[0],
             "date": today,
-            "time": current_time
+            "time": current_time,
+            "status": status,  # Add status field
+            "scheduledTime": start_time_str
         }
 
         r.set(attendance_key, json.dumps(attendance_data))
@@ -308,10 +335,19 @@ def mark_attendance():
         previous_dates_key = f"{user_id}_attendance_dates_times"
         previous_dates_times = r.get(previous_dates_key)
         previous_dates_times = json.loads(previous_dates_times) if previous_dates_times else []
-        previous_dates_times.append({"date": today, "time": current_time})
+        previous_dates_times.append({
+            "date": today, 
+            "time": current_time,
+            "status": status,
+            "scheduledTime": start_time_str
+        })
         r.set(previous_dates_key, json.dumps(previous_dates_times))
 
-        return jsonify({"message": "Attendance marked successfully", "attendance": attendance_data}), 200
+        return jsonify({
+            "message": "Attendance marked successfully", 
+            "attendance": attendance_data,
+            "status": status
+        }), 200
 
     except Exception as e:
         print("Error marking attendance:", e)
@@ -333,7 +369,81 @@ def get_attendance_history():
     formatted_records = [json.loads(record) for record in attendance_history]
     return jsonify(formatted_records)
 
+@app.route('/api/check-out', methods=['POST'])
+def check_out():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
 
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+
+        # Verify user credentials
+        dataframe = load_dataframe_from_redis()
+        user_row = dataframe[dataframe['Username'] == username]
+        
+        if user_row.empty:
+            return jsonify({"error": "Invalid username or password"}), 400
+
+        stored_hash = user_row['Password'].values[0].encode('utf-8')
+        if not verify_password(stored_hash, password):
+            return jsonify({"error": "Invalid username or password"}), 400
+
+        user_id = user_row['user_id'].values[0]
+        today = datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.now().strftime("%H:%M:%S")
+
+        # Check if user has checked in today
+        attendance_key = f"{user_id}-{today}"
+        attendance_data = r.get(attendance_key)
+        
+        if not attendance_data:
+            return jsonify({"error": "You need to check in first before checking out"}), 400
+
+        attendance_record = json.loads(attendance_data)
+        
+        # Check if already checked out
+        if attendance_record.get('checkOutTime'):
+            return jsonify({"error": "You have already checked out today"}), 400
+
+        # Add check-out time to the record
+        attendance_record['checkOutTime'] = current_time
+        r.set(attendance_key, json.dumps(attendance_record))
+
+        # Update the attendance report
+        attendance_report_key = "attendance_report"
+        attendance_report = r.get(attendance_report_key)
+        if attendance_report:
+            attendance_report = json.loads(attendance_report)
+            # Find and update the record for today
+            for record in attendance_report:
+                if record.get('date') == today and record.get('name') == attendance_record['name']:
+                    record['checkOutTime'] = current_time
+                    break
+            r.set(attendance_report_key, json.dumps(attendance_report))
+
+        # Update user's attendance history
+        previous_dates_key = f"{user_id}_attendance_dates_times"
+        previous_dates_times = r.get(previous_dates_key)
+        if previous_dates_times:
+            previous_dates_times = json.loads(previous_dates_times)
+            # Find today's record and update checkOutTime
+            for record in previous_dates_times:
+                if record.get('date') == today:
+                    record['checkOutTime'] = current_time
+                    break
+            r.set(previous_dates_key, json.dumps(previous_dates_times))
+
+        return jsonify({
+            "message": "Checked out successfully",
+            "checkOutTime": current_time,
+            "attendance": attendance_record
+        }), 200
+
+    except Exception as e:
+        print("Error during check-out:", e)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/view-attendance', methods=['POST'])
 def view_attendance():
@@ -342,17 +452,12 @@ def view_attendance():
         username = data.get('username')
         password = data.get('password')
 
-        print(f"Received request for username: {username}")  # Debugging
-
         if not username or not password:
             return jsonify({"error": "Username and password are required"}), 400
 
         # Load user data
         dataframe = load_dataframe_from_redis()
-        print("Loaded DataFrame:", dataframe)  # Debugging
-
         user_row = dataframe[dataframe['Username'] == username]
-        print("User Row:", user_row)  # Debugging
 
         if user_row.empty:
             return jsonify({"error": "Invalid username or password"}), 400
@@ -362,56 +467,138 @@ def view_attendance():
             return jsonify({"error": "Invalid username or password"}), 400
 
         user_id = user_row['user_id'].values[0]
-        print(f"User ID: {user_id}")  # Debugging
-
-        # Ensure the correct column name is used
-        if 'RegistrationDate' not in user_row:
-            print("Error: 'RegistrationDate' column not found in user data")  # Debugging
-            return jsonify({"error": "Registration date not found"}), 500
+        start_time = user_row['StartTime'].values[0]
 
         try:
             registration_date = datetime.strptime(user_row['RegistrationDate'].values[0], "%Y-%m-%d")
-            print(f"Registration Date: {registration_date}")  # Debugging
         except ValueError as e:
-            print(f"Error parsing RegistrationDate: {e}")  # Debugging
             return jsonify({"error": f"Invalid date format in RegistrationDate: {e}"}), 500
 
         today = datetime.now().date()
-        print(f"Today's Date: {today}")  # Debugging
-
+        
         # Generate all dates from registration to today
         all_dates = [(registration_date + timedelta(days=i)).strftime("%Y-%m-%d") 
                      for i in range((today - registration_date.date()).days + 1)]
-        print(f"All Dates: {all_dates}")  # Debugging
 
         # Fetch stored attendance records
         attendance_data = r.get(f"{user_id}_attendance_dates_times")
-        print(f"Attendance Data from Redis: {attendance_data}")  # Debugging
-
         attendance_records = json.loads(attendance_data) if attendance_data else []
-        print(f"Attendance Records: {attendance_records}")  # Debugging
 
-        # Process attendance records
+        # Process attendance records with proper status calculation
         recorded_dates = {record["date"]: record for record in attendance_records}
-        formatted_records = [
-            {
-                "date": date,
-                "checkInTime": recorded_dates.get(date, {}).get("time", "N/A"),
-                "checkOutTime": "N/A",
-                "markedAs": "Present" if date in recorded_dates else "Absent",
-                "status": ":)" if date in recorded_dates else ":("
-            }
-            for date in all_dates
-        ]
-
-        print(f"Formatted Records: {formatted_records}")  # Debugging
+        formatted_records = []
+        
+        for date in all_dates:
+            if date in recorded_dates:
+                record = recorded_dates[date]
+                # Calculate status based on check-in time
+                try:
+                    check_in_time = datetime.strptime(record["time"], "%H:%M:%S").time()
+                    scheduled_time = datetime.strptime(start_time, "%H:%M").time()
+                    
+                    # Calculate time difference in minutes
+                    check_in_datetime = datetime.combine(datetime.min, check_in_time)
+                    scheduled_datetime = datetime.combine(datetime.min, scheduled_time)
+                    time_diff = (check_in_datetime - scheduled_datetime).total_seconds() / 60
+                    
+                    if time_diff > 10:  # More than 10 minutes late
+                        status = "Late"
+                    else:
+                        status = "OnTime"
+                except Exception as e:
+                    print(f"Error calculating status for {date}: {e}")
+                    status = "Present"  # Fallback status
+                
+                formatted_records.append({
+                    "date": date,
+                    "checkInTime": record.get("time", "N/A"),
+                    "checkOutTime": record.get("checkOutTime", "N/A"),
+                    "markedAs": "Present",
+                    "status": status,
+                    "scheduledTime": start_time
+                })
+            else:
+                formatted_records.append({
+                    "date": date,
+                    "checkInTime": "N/A",
+                    "checkOutTime": "N/A",
+                    "markedAs": "Absent",
+                    "status": "Absent",
+                    "scheduledTime": start_time
+                })
 
         return jsonify({"attendance": formatted_records}), 200
 
     except Exception as e:
-        print(f"Error in view_attendance: {e}")  # Debugging
+        print(f"Error in view_attendance: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/attendance-stats', methods=['POST'])
+def get_attendance_stats():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({"error": "Username and password are required"}), 400
+
+        # Verify user credentials
+        dataframe = load_dataframe_from_redis()
+        user_row = dataframe[dataframe['Username'] == username]
+        
+        if user_row.empty:
+            return jsonify({"error": "Invalid username or password"}), 400
+
+        stored_hash = user_row['Password'].values[0].encode('utf-8')
+        if not verify_password(stored_hash, password):
+            return jsonify({"error": "Invalid username or password"}), 400
+
+        user_id = user_row['user_id'].values[0]
+        
+        # Get all attendance records
+        attendance_key = f"{user_id}_attendance_dates_times"
+        attendance_data = r.get(attendance_key)
+        attendance_records = json.loads(attendance_data) if attendance_data else []
+        
+        # Initialize counters
+        ontime = 0
+        late = 0
+        absent = 0
+        
+        # Count statuses from existing records
+        for record in attendance_records:
+            status = record.get('status', '').lower()
+            if status == 'ontime':
+                ontime += 1
+            elif status == 'late':
+                late += 1
+        
+        # Calculate absent days
+        registration_date = datetime.strptime(user_row['RegistrationDate'].values[0], "%Y-%m-%d").date()
+        today = datetime.now().date()
+        total_days = (today - registration_date).days + 1
+        present_days = ontime + late
+        absent = total_days - present_days if total_days > present_days else 0
+        
+        return jsonify({
+            "stats": {
+                "ontime": ontime,
+                "late": late,
+                "absent": absent,
+                "total_days": total_days
+            },
+            "percentages": {
+                "ontime": round((ontime / total_days) * 100, 1) if total_days > 0 else 0,
+                "late": round((late / total_days) * 100, 1) if total_days > 0 else 0,
+                "absent": round((absent / total_days) * 100, 1) if total_days > 0 else 0
+            }
+        }), 200
+
+    except Exception as e:
+        print("Error getting attendance stats:", e)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
    app.run(debug=True) 

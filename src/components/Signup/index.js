@@ -91,6 +91,8 @@ const SignupPage = () => {
         // Store username and password in localStorage
         localStorage.setItem("username", username);
         localStorage.setItem("password", password);
+        localStorage.setItem("startTime", startTime);
+        localStorage.setItem("endTime", endTime);
 
         // Redirect based on the selected role
         if (role === "Student") {
