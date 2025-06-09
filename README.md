@@ -41,11 +41,23 @@ sudo service redis-server start
 ### Face Recognition Demo  
 ![Face Recognition Demo](screenshots/home.png)  
 
-### User Login  
+### User Signup  
 ![User Login](screenshots/signup.png)  
 
+### User Login  
+![User Login](screenshots/login.png)  
+
+### Mode of working  
+![User Login](screenshots/route2.png)  
+
+### Key Verification for remote work  
+![User Login](screenshots/key.png)  
+
+### Check-in, Check-out and View Attendance  
+![User Login](screenshots/route.png)  
+
 ### Attendance Marking  
-![Attendance Marking](screenshots/mark.png)  
+![Attendance Marking](screenshots/checkin.png)  
 
 ### Dashboard  
 ![Dashboard Screenshot](screenshots/dashboard.png) 
