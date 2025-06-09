@@ -135,7 +135,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StyledHomePage } from "./style";
-import faceIdImage from "./img.png"; // Update with actual path
+import faceIdImage from "./img.png"; 
 
 const HomePage = () => {
   const navigate = useNavigate();

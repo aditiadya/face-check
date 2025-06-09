@@ -15,7 +15,7 @@ const Login = () => {
     const storedPassword = localStorage.getItem("password");
 
     if (storedUsername && storedPassword) {
-      navigate("/role");  // Redirect to attendance if logged in
+      navigate("/attendance");  // Redirect to attendance if logged in
     }
   }, [navigate]);
 
@@ -28,7 +28,7 @@ const Login = () => {
       if (response.status === 200) {
         localStorage.setItem("username", username);
         localStorage.setItem("password", password);
-        navigate("/role");  // Navigate to attendance after successful login
+        navigate("/attendance");  // Navigate to attendance after successful login
       } else {
         setError("Invalid credentials");
       }

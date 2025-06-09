@@ -41,6 +41,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 # Redis connection using CLI-based setup (no password or hostname)
 r = redis.StrictRedis(host="localhost", port=6379, decode_responses=True)
 
+
+#This API endpoint is used when your frontend wants to fetch the attendance history of a specific user (either employee or student).
 @app.route('/getAttendance', methods=['POST'])
 def get_attendance():
     data = request.json
@@ -65,11 +67,11 @@ def get_attendance():
 
     # Convert attendance data from Redis and return it
     attendance_list = [json.loads(record.decode('utf-8')) for record in attendance_data]
-
     return jsonify(attendance_list)
 
 # Threshold for recognition
-THRESHOLD = 0.6  # Example threshold; may need adjustment
+THRESHOLD = 0.6
+
 @app.route('/login', methods=['POST'])
 def login():
     try:
@@ -104,7 +106,7 @@ def login():
 @app.route('/api/logout', methods=['POST'])
 def logout():
  try:
-         # The front end handles the token removal, but we can send a success response.
+    # The frontend handles the token removal, but we send a success response.
        return jsonify({"message": "Logged out successfully"}), 200
  except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -298,7 +300,7 @@ def mark_attendance():
             time_difference = (current_datetime - scheduled_datetime).total_seconds() / 60
             
             # Determine status
-            if time_difference > 10:  # More than 10 minutes late
+            if time_difference > 30:  # More than 10 minutes late
                 status = "Late"
             else:
                 status = "OnTime"
@@ -501,7 +503,7 @@ def view_attendance():
                     scheduled_datetime = datetime.combine(datetime.min, scheduled_time)
                     time_diff = (check_in_datetime - scheduled_datetime).total_seconds() / 60
                     
-                    if time_diff > 10:  # More than 10 minutes late
+                    if time_diff > 30:  # More than 10 minutes late
                         status = "Late"
                     else:
                         status = "OnTime"
